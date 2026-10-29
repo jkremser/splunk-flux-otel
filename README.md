@@ -34,7 +34,7 @@ Prerequisites: Azure CLI, GitHub CLI, Helm, kubectl, Ruby, Python 3, SOPS and ag
 cp .env.example .env
 # Edit .env locally; never commit it or paste tokens into chat.
 # Splunk: use an organization token with ingest permission, not a RUM token.
-python3 scripts/prepare-secrets.py
+python3 scripts/prepare-secrets.py --platform
 git add .sops.yaml infrastructure/secrets clusters/mobility-global/reconciliation.yaml
 git commit -m 'Configure encrypted deployment credentials'
 git push origin main
@@ -64,12 +64,12 @@ ruby scripts/validate.rb
 # Linux example; macOS release binaries are also available:
 curl -fsSL https://github.com/signalfx/splunk-otel-collector/releases/download/v0.120.0/otelcol_linux_amd64 -o .cache/otelcol
 chmod +x .cache/otelcol
-SPLUNK_OBSERVABILITY_ACCESS_TOKEN=validation K8S_NODE_NAME=validation \
+SPLUNK_PLATFORM_HEC_TOKEN=validation K8S_NODE_NAME=validation \
  K8S_POD_NAME=validation K8S_NAMESPACE=observability \
  .cache/otelcol validate --config=.cache/rendered/splunk-collector.yaml
 ```
 
-Rendering checks every component and Kustomization, keeps the original Splunk metrics exporter, verifies the scaling exporter, and checks that Predictor cannot drive nginx scaling. Chart archive checksums are committed in `charts.lock.json`.
+Rendering checks every component and Kustomization, keeps the configured Splunk metrics exporter, verifies the scaling exporter, and checks that Predictor cannot drive nginx scaling. Chart archive checksums are committed in `charts.lock.json`.
 
 ## Observe metrics and scaling
 
@@ -125,13 +125,27 @@ HTTP Scaler, ScaleOps coexistence testing, Humanitec and Kgateway are follow-up 
 
 The live Agent 0.8.3 controller also needs cluster-wide read-only ConfigMap discovery with optional autowiring RBAC disabled; this is granted explicitly through `agent.extraRbacRules`. Self-update and component-install permissions remain disabled.
 
-## Observed deployment status — 2026-10-29
+## Configured Splunk backend
 
-- AKS `mobility-global`, Kubernetes 1.35.8: both nodes Ready.
-- Flux 2.10.0 bootstrapped from this private repository; infrastructure reconciled through commit `55a8cca`.
-- HAProxy, KEDA, Agent, OTel Scaler and Predictor HelmReleases Ready; PostgreSQL Ready with its 8Gi disk Bound.
-- nginx returns its pod hostname through HAProxy. Live backend identity is `demo_svc_nginx_http`.
-- KEDA external metrics API Available; raw-metrics flags enabled in the running operator.
-- All pinned charts render; final Collector config validates using Splunk Collector 0.120.0. GitHub validation workflow passes. ScaledObject and MetricPredictor pass server-side dry-run.
-- Splunk remains suspended: the supplied account is Cloud Platform, not an Observability organization. Its connection dialog requires a separate Observability realm/admin token.
-- ScaledObject, MetricPredictor and load test are staged in Git. No metric-arrival, scaling-response, or PostgreSQL recording success is claimed yet; the database currently contains zero metric samples.
+This demo uses the supplied **Splunk Cloud Platform trial**, whose console is https://prd-p-hzecp.splunkcloud.com. It is a different product from the customer’s **Observability Cloud** backend. No realm is needed for this backend.
+
+- HEC endpoint: `https://prd-p-hzecp.splunkcloud.com:8088/services/collector/event` (verified directly against this trial).
+- Metrics index: `mobility_metrics`, capped at 1024 MB and seven days of retention.
+- Token: `mobility-otel`, enabled and restricted to that index; its value is SOPS-encrypted in Git.
+- Both the normal Collector metrics pipelines and `metrics/haproxy` export through `splunk_hec/platform_metrics`; the separate `metrics/scaling` branch still exports OTLP/gRPC to the OTel Scaler.
+- Logs and traces are disabled for this metrics-only trial token. The Collector’s bundled Kubernetes/node metrics collection remains enabled.
+- This trial presents `CN=SplunkServerDefaultCert`, signed by `SplunkCommonCA`, with no hostname/SAN extension. `splunkPlatform.insecureSkipVerify: true` is deliberately limited to this disposable trial destination. Production must use a correctly issued certificate and enable verification.
+
+Use `SPLUNK_HEC_ENDPOINT` and `SPLUNK_HEC_TOKEN` in `.env`, then run `scripts/prepare-secrets.py --platform`. To reproduce the customer’s Observability destination instead, replace the release’s `spec.values` with `infrastructure/splunk/observability-values.yaml`, supply a real `SPLUNK_REALM` and ingest-capable `SPLUNK_ACCESS_TOKEN`, and run `scripts/prepare-secrets.py` without `--platform`. Preserve the existing chart/release identity. The Observability profile keeps the same selected metric and scaling branch.
+
+Inspect the token under **Settings → Data Inputs → HTTP Event Collector**, and the index under **Settings → Indexes**. A verification metric was indexed successfully:
+
+```spl
+| mstats latest(_value) AS value WHERE index=mobility_metrics AND metric_name=mobility_setup_check
+```
+
+For incoming HAProxy counter values:
+
+```spl
+| mstats latest(_value) AS requests WHERE index=mobility_metrics AND metric_name=haproxy_backend_http_requests_total BY proxy,pod
+```

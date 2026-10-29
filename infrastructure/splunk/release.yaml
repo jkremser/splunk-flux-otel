@@ -120,6 +120,14 @@ spec:
       logsEnabled: false
       tracesEnabled: false
       insecureSkipVerify: true
+    agent:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 500Mi
   chart:
     spec:
       chart: splunk-otel-collector

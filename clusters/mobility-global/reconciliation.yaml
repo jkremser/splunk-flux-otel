@@ -316,5 +316,5 @@ spec:
       name: sops-age
   dependsOn:
   - name: scaling
-  suspend: true
+  suspend: false
   wait: true

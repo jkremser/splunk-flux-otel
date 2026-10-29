@@ -28,6 +28,10 @@ spec:
         lazySeries: false
         lazyAggregates: false
         errIfNotFound: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
   chartRef:
     kind: OCIRepository
     name: otel-scaler
