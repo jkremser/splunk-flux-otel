@@ -124,3 +124,14 @@ HTTP Scaler, ScaleOps coexistence testing, Humanitec and Kgateway are follow-up 
 `python3 scripts/prepare-secrets.py --kedify-only` encrypts only the Kedify and PostgreSQL credentials and enables their Flux dependency. Splunk stays suspended until a real Observability realm and ingest token are supplied. Once available, run without that option and commit all generated Secret/settings files, `.sops.yaml`, and reconciliation changes. A Cloud Platform HEC token is not an Observability ingest token.
 
 The live Agent 0.8.3 controller also needs cluster-wide read-only ConfigMap discovery with optional autowiring RBAC disabled; this is granted explicitly through `agent.extraRbacRules`. Self-update and component-install permissions remain disabled.
+
+## Observed deployment status — 2026-10-29
+
+- AKS `mobility-global`, Kubernetes 1.35.8: both nodes Ready.
+- Flux 2.10.0 bootstrapped from this private repository; infrastructure reconciled through commit `55a8cca`.
+- HAProxy, KEDA, Agent, OTel Scaler and Predictor HelmReleases Ready; PostgreSQL Ready with its 8Gi disk Bound.
+- nginx returns its pod hostname through HAProxy. Live backend identity is `demo_svc_nginx_http`.
+- KEDA external metrics API Available; raw-metrics flags enabled in the running operator.
+- All pinned charts render; final Collector config validates using Splunk Collector 0.120.0. GitHub validation workflow passes. ScaledObject and MetricPredictor pass server-side dry-run.
+- Splunk remains suspended: the supplied account is Cloud Platform, not an Observability organization. Its connection dialog requires a separate Observability realm/admin token.
+- ScaledObject, MetricPredictor and load test are staged in Git. No metric-arrival, scaling-response, or PostgreSQL recording success is claimed yet; the database currently contains zero metric samples.
