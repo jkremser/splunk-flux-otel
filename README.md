@@ -33,7 +33,7 @@ Prerequisites: Azure CLI, GitHub CLI, Helm, kubectl, Ruby, Python 3, SOPS and ag
 ```sh
 cp .env.example .env
 # Edit .env locally; never commit it or paste tokens into chat.
-# Splunk: use an organization token with ingest permission, not a RUM token.
+# Current backend: set SPLUNK_HEC_ENDPOINT and the dedicated SPLUNK_HEC_TOKEN.
 python3 scripts/prepare-secrets.py --platform
 git add .sops.yaml infrastructure/secrets clusters/mobility-global/reconciliation.yaml
 git commit -m 'Configure encrypted deployment credentials'
@@ -119,9 +119,9 @@ Revert configuration commits and let Flux reconcile. Do not reset the scaler sto
 
 HTTP Scaler, ScaleOps coexistence testing, Humanitec and Kgateway are follow-up work. Keep ScaleOps replica optimization off this demo until shared ownership of the generated HPA has been tested.
 
-## Staging while the Observability account is pending
+## Optional staged bootstrap
 
-`python3 scripts/prepare-secrets.py --kedify-only` encrypts only the Kedify and PostgreSQL credentials and enables their Flux dependency. Splunk stays suspended until a real Observability realm and ingest token are supplied. Once available, run without that option and commit all generated Secret/settings files, `.sops.yaml`, and reconciliation changes. A Cloud Platform HEC token is not an Observability ingest token.
+`python3 scripts/prepare-secrets.py --kedify-only` encrypts only the Kedify and PostgreSQL credentials and enables their Flux dependency. Splunk stays suspended until backend credentials are supplied. For the configured Cloud Platform trial, run again with `--platform`; for the optional Observability profile, use a realm/ingest token and no backend flag. Commit all generated Secret/settings files, `.sops.yaml`, and reconciliation changes. A Cloud Platform HEC token is not an Observability ingest token.
 
 The live Agent 0.8.3 controller also needs cluster-wide read-only ConfigMap discovery with optional autowiring RBAC disabled; this is granted explicitly through `agent.extraRbacRules`. Self-update and component-install permissions remain disabled.
 
@@ -153,3 +153,11 @@ For incoming HAProxy counter values:
 The configured Splunk report is **[Mobility Global - nginx request rate](https://prd-p-hzecp.splunkcloud.com/en-GB/app/search/report?s=Mobility%20Global%20-%20nginx%20request%20rate)**. Its SPL is tracked in `splunk/reports/nginx-request-rate.spl`; it sums per-producer counter rates in 30-second buckets. Sign in with your existing console account to open it.
 
 For this small two-node reproduction, HAProxy reserves 100m CPU per pod, OTel Scaler 100m, and Splunk node agents 100m each. The stock reservations left insufficient scheduling space despite low observed usage. These are demo settings, not production sizing recommendations.
+
+## Verified deployment — 2026-10-29
+
+All six HelmReleases are Ready. HAProxy metrics are fresh in both Splunk and OTel Scaler, and the exact scaling query is verified against real stored data. The named `measured` external trigger remains the only trigger on nginx.
+
+The GitOps k6 Job completed **32,401 requests, zero failures, zero dropped iterations**. nginx reached **3 replicas at about 60 RPS**, then **5 replicas at about 120 RPS**, and returned to **1 replica** after traffic stopped. During the 120-RPS phase Predictor was at zero replicas and nginx still reached five, proving that the forecast model does not drive scaling. Predictor was restored to one replica and recording resumed.
+
+PostgreSQL history survived replacement of its pod on the existing Azure Disk PVC. The final check found 21 recorded samples, including values near 120 RPS and idle zeroes. MetricPredictor is Ready with its KEDA source subscribed. See `verification/results.json` for sampled observations. The load-test Kustomization is suspended again; the completed Job/logs remain available for inspection.
