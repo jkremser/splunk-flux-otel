@@ -149,3 +149,7 @@ For incoming HAProxy counter values:
 ```spl
 | mstats latest(_value) AS requests WHERE index=mobility_metrics AND metric_name=haproxy_backend_http_requests_total BY proxy,pod
 ```
+
+The configured Splunk report is **[Mobility Global - nginx request rate](https://prd-p-hzecp.splunkcloud.com/en-GB/app/search/report?s=Mobility%20Global%20-%20nginx%20request%20rate)**. Its SPL is tracked in `splunk/reports/nginx-request-rate.spl`; it sums per-producer counter rates in 30-second buckets. Sign in with your existing console account to open it.
+
+For this small two-node reproduction, HAProxy reserves 100m CPU per pod, OTel Scaler 100m, and Splunk node agents 100m each. The stock reservations left insufficient scheduling space despite low observed usage. These are demo settings, not production sizing recommendations.
