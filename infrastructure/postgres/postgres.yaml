@@ -28,6 +28,8 @@ spec:
     metadata:
       labels:
         app: postgres
+      annotations:
+        poc.kedify.io/persistence-check: '2026-10-29'
     spec:
       containers:
       - name: postgres

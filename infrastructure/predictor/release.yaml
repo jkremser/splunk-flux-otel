@@ -15,7 +15,7 @@ spec:
     remediation:
       retries: 2
   values:
-    replicaCount: 1
+    replicaCount: 0
     affinity: {}
     db:
       type: postgres
