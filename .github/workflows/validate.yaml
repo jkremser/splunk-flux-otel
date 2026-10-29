@@ -20,6 +20,7 @@ jobs:
           .cache/otelcol validate --config=.cache/rendered/splunk-collector.yaml
         env:
           SPLUNK_OBSERVABILITY_ACCESS_TOKEN: validation
+          SPLUNK_PLATFORM_HEC_TOKEN: validation
           K8S_NODE_NAME: validation
           K8S_POD_NAME: validation
           K8S_NAMESPACE: observability

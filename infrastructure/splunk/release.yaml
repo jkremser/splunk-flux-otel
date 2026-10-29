@@ -27,9 +27,6 @@ spec:
       create: false
       name: splunk-credentials
       validateSecret: true
-    splunkObservability:
-      realm: "${SPLUNK_REALM}"
-      metricsEnabled: true
     autodetect:
       prometheus: false
     clusterReceiver:
@@ -104,7 +101,7 @@ spec:
               - resource
               - batch
               exporters:
-              - signalfx
+              - splunk_hec/platform_metrics
             metrics/scaling:
               receivers:
               - prometheus/haproxy
@@ -115,6 +112,14 @@ spec:
               - batch/scaling
               exporters:
               - otlp/scaling
+    splunkPlatform:
+      endpoint: "${SPLUNK_HEC_ENDPOINT}"
+      index: mobility_metrics
+      metricsIndex: mobility_metrics
+      metricsEnabled: true
+      logsEnabled: false
+      tracesEnabled: false
+      insecureSkipVerify: true
   chart:
     spec:
       chart: splunk-otel-collector

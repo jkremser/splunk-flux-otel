@@ -9,7 +9,13 @@ charts={'haproxy'=>'haproxy.tgz','splunk'=>'splunk.tgz','keda'=>'keda.tgz','agen
 charts.each do |component,archive|
   release=YAML.load_file("infrastructure/#{component}/release.yaml")
   spec=release['spec']; values=Marshal.load(Marshal.dump(spec['values']))
-  values['splunkObservability']['realm']='us0' if component=='splunk'
+  if component=='splunk'
+    if values['splunkPlatform']
+      values['splunkPlatform']['endpoint']='https://validation.example/services/collector/event'
+    else
+      values['splunkObservability']['realm']='us0'
+    end
+  end
   File.write(".cache/#{component}-values.yaml",YAML.dump(values))
   chart=".cache/charts/#{archive}"
   abort "Missing #{chart}; download the pinned charts first (see README)" unless File.exist?(chart)
@@ -23,7 +29,7 @@ charts.each do |component,archive|
     config=YAML.safe_load(cm['data']['relay'])
     File.write('.cache/rendered/splunk-collector.yaml',YAML.dump(config))
     pipelines=config.dig('service','pipelines')
-    abort 'Original monitoring pipeline removed' unless pipelines['metrics']['exporters'].include?('signalfx')
+    abort 'Original monitoring pipeline removed' unless pipelines['metrics']['exporters'].include?(values['splunkPlatform'] ? 'splunk_hec/platform_metrics' : 'signalfx')
     abort 'Scaling exporter missing' unless pipelines['metrics/scaling']['exporters']==['otlp/scaling']
     sa=docs.find {|d|d['kind']=='Deployment' && d.dig('metadata','name').end_with?('k8s-cluster-receiver')}
     puts "Splunk collector SA: #{sa&.dig('spec','template','spec','serviceAccountName')}"

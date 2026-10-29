@@ -12,10 +12,11 @@ for line in (root/'.env').read_text().splitlines():
     tokens=shlex.split(val, comments=True)
     values[key.strip()]=' '.join(tokens)
 partial='--kedify-only' in sys.argv
-required=['KEDIFY_ORG_ID','KEDIFY_API_KEY'] if partial else ['SPLUNK_REALM','SPLUNK_ACCESS_TOKEN','KEDIFY_ORG_ID','KEDIFY_API_KEY']
+platform='--platform' in sys.argv
+required=['KEDIFY_ORG_ID','KEDIFY_API_KEY'] + ([] if partial else ['SPLUNK_HEC_ENDPOINT','SPLUNK_HEC_TOKEN'] if platform else ['SPLUNK_REALM','SPLUNK_ACCESS_TOKEN'])
 for key in required:
     if not values.get(key): raise SystemExit('Missing '+key+' in .env')
-if not partial and not re.fullmatch(r'[a-z][a-z0-9-]{1,31}',values['SPLUNK_REALM']): raise SystemExit('SPLUNK_REALM must be an actual realm identifier, for example eu0; use --kedify-only to stage other components.')
+if not partial and not platform and not re.fullmatch(r'[a-z][a-z0-9-]{1,31}',values['SPLUNK_REALM']): raise SystemExit('SPLUNK_REALM must be an actual realm identifier, for example eu0; use --kedify-only to stage other components.')
 local=root/'.local';local.mkdir(mode=0o700,exist_ok=True)
 keyfile=local/'sops.agekey'
 if not keyfile.exists(): subprocess.run(['age-keygen','-o',str(keyfile)],check=True,capture_output=True)
@@ -27,7 +28,12 @@ if not password.exists(): password.write_text(secrets.token_urlsafe(32))
 password.chmod(0o600)
 (root/'.sops.yaml').write_text('creation_rules:\n  - path_regex: infrastructure/secrets/.*\\.enc\\.yaml$\n    encrypted_regex: "^(data|stringData)$"\n    age: '+pub+'\n')
 def secret(name,namespace,data):return {'apiVersion':'v1','kind':'Secret','metadata':{'name':name,'namespace':namespace},'type':'Opaque','stringData':data}
-objects=[('splunk',secret('splunk-credentials','observability',{'splunk_observability_access_token':values['SPLUNK_ACCESS_TOKEN']})),('kedify',secret('kedify-agent','keda',{'apikey':values['KEDIFY_API_KEY'],'org_id':values['KEDIFY_ORG_ID']})),('postgres',secret('postgres-credentials','keda',{'password':password.read_text()})),('settings',{'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'cluster-settings','namespace':'flux-system'},'data':{'SPLUNK_REALM':values['SPLUNK_REALM']}})]
+objects=[('kedify',secret('kedify-agent','keda',{'apikey':values['KEDIFY_API_KEY'],'org_id':values['KEDIFY_ORG_ID']})),('postgres',secret('postgres-credentials','keda',{'password':password.read_text()}))]
+if not partial:
+    creds={'splunk_platform_hec_token':values['SPLUNK_HEC_TOKEN']} if platform else {'splunk_observability_access_token':values['SPLUNK_ACCESS_TOKEN']}
+    settings={'SPLUNK_HEC_ENDPOINT':values['SPLUNK_HEC_ENDPOINT']} if platform else {'SPLUNK_REALM':values['SPLUNK_REALM']}
+    objects += [('splunk',secret('splunk-credentials','observability',creds)),('settings',{'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'cluster-settings','namespace':'flux-system'},'data':settings})]
+
 paths=[]
 for name,obj in objects:
     if partial and name in ('splunk','settings'): continue
