@@ -34,6 +34,15 @@ spec:
         shouldBeAbleToInstallKeda: false
         shouldBeAbleToInstallHttpAddon: false
         ingressAutoWire: false
+      extraRbacRules:
+      - apiGroups:
+        - ''
+        resources:
+        - configmaps
+        verbs:
+        - get
+        - list
+        - watch
   chart:
     spec:
       chart: kedify-agent

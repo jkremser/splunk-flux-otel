@@ -72,7 +72,7 @@ spec:
               metric:
               - name != "haproxy_backend_http_requests_total"
               datapoint:
-              - attributes["proxy"] != "demo_nginx_http"
+              - attributes["proxy"] != "demo_svc_nginx_http"
           transform/scaling:
             error_mode: propagate
             metric_statements:

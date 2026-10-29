@@ -90,7 +90,7 @@ curl --fail -H 'Content-Type: application/json' --data \
  http://127.0.0.1:19090/memstore/query
 ```
 
-Confirm fresh samples, two HAProxy producer identities, and actual backend label `proxy=demo_nginx_http`. `producer_uid` preserves identity across pod replacement. The scaling filter drops all other metrics/backends before adding workload labels. Verify the stored metric name; do not treat HTTP 200 or a zero value alone as proof of healthy ingestion.
+Confirm fresh samples, two HAProxy producer identities, and actual backend label `proxy=demo_svc_nginx_http`. `producer_uid` preserves identity across pod replacement. The scaling filter drops all other metrics/backends before adding workload labels. Verify the stored metric name; do not treat HTTP 200 or a zero value alone as proof of healthy ingestion.
 
 Policy: total RPS / 20 RPS per nginx replica; bounds 1–5, 15s polling, 60s rate retention and 60s HPA downscale stabilization. Missing-metric errors are enabled. Stale data and exporter errors must be checked independently. Ports: 4317 OTLP ingestion, 4318 external scaler protocol, 9090 diagnostics.
 
@@ -118,3 +118,9 @@ Confirm fresh HAProxy and cluster metrics in Splunk. The MP contains no syntheti
 Revert configuration commits and let Flux reconcile. Do not reset the scaler store or delete the PostgreSQL PVC to diagnose ingestion. Deleting resource group `mobility-global` is a separate, deliberate teardown that destroys the cluster and its persisted data; export any recording history first. No automatic cloud teardown is configured.
 
 HTTP Scaler, ScaleOps coexistence testing, Humanitec and Kgateway are follow-up work. Keep ScaleOps replica optimization off this demo until shared ownership of the generated HPA has been tested.
+
+## Staging while the Observability account is pending
+
+`python3 scripts/prepare-secrets.py --kedify-only` encrypts only the Kedify and PostgreSQL credentials and enables their Flux dependency. Splunk stays suspended until a real Observability realm and ingest token are supplied. Once available, run without that option and commit all generated Secret/settings files, `.sops.yaml`, and reconciliation changes. A Cloud Platform HEC token is not an Observability ingest token.
+
+The live Agent 0.8.3 controller also needs cluster-wide read-only ConfigMap discovery with optional autowiring RBAC disabled; this is granted explicitly through `agent.extraRbacRules`. Self-update and component-install permissions remain disabled.
