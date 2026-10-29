@@ -1,0 +1,38 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kedify-predictor
+  namespace: flux-system
+spec:
+  interval: 10m
+  releaseName: kedify-predictor
+  targetNamespace: keda
+  install:
+    remediation:
+      retries: 2
+  upgrade:
+    remediation:
+      retries: 2
+  values:
+    replicaCount: 1
+    affinity: {}
+    db:
+      type: postgres
+      host: postgres.keda.svc.cluster.local
+      port: '5432'
+      user: predictor
+      name: predictor
+      existingSecret: postgres-credentials
+      existingSecretPasswordKey: password
+    kedaPredictionController:
+      enabled: true
+      kedaLess: false
+      noSharedVolumes: true
+      kedaMetricsAddress: keda-operator.keda.svc:9666
+      otlpReceiver:
+        enabled: false
+  chartRef:
+    kind: OCIRepository
+    name: predictor
+    namespace: flux-system
