@@ -1,7 +1,5 @@
 # Mobility Global: Flux, Splunk OTel and record-only Predictor
 
-Customer reference: https://github.com/kedify/support-wiki/issues/2
-
 Traffic → HAProxy → nginx. Splunk's bundled single cluster collector scrapes each HAProxy pod at port 1024. The shared receiver feeds `metrics/haproxy` → Splunk and `metrics/scaling` → OTel Scaler over OTLP/gRPC. Existing Splunk node/cluster monitoring pipelines remain intact.
 
 KEDA queries the scaler and drives nginx's HPA. Predictor independently subscribes to KEDA's TLS raw-metrics stream and stores RPS measurements in PostgreSQL. **The ScaledObject never queries Predictor.** Training readiness is not required for recording.
