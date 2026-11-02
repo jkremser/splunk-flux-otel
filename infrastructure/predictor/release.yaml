@@ -17,6 +17,20 @@ spec:
   values:
     replicaCount: 1
     affinity: {}
+    settings:
+      storage:
+        modelsPath: /models
+    deploymentStrategy:
+      type: Recreate
+    podSecurityContext:
+      fsGroup: 65532
+    extraVolumes:
+    - name: models
+      persistentVolumeClaim:
+        claimName: predictor-models
+    extraVolumeMounts:
+    - name: models
+      mountPath: /models
     db:
       type: postgres
       host: postgres.keda.svc.cluster.local

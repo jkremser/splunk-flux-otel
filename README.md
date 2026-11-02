@@ -22,6 +22,8 @@ Kubernetes 1.34 from the plan is unavailable in West Europe. 1.35 is inside KEDA
 
 All releases and workload configuration are owned by Flux. Agent auto-updates are disabled and optional Agent subcharts are disabled. Bootstrap installs only Flux and initial trust material outside GitOps. Generated HPA resources belong to KEDA; nginx's replica field is omitted from Git. PostgreSQL uses an 8Gi `managed-csi` disk. PVC history is retained across pod replacement.
 
+Predictor stores uploaded model files on a dedicated 1Gi `managed-csi` PVC mounted at `/models`. PostgreSQL remains the database; `noSharedVolumes: true` prevents the chart from creating its SQLite PVC. Training jobs use temporary model storage and upload to the API. The API pod uses `fsGroup: 65532` for write access and a `Recreate` deployment strategy for its single-node disk, so upgrades briefly interrupt the API. The PVC and HelmRelease belong to the same Flux Kustomization, allowing the API pod to trigger `WaitForFirstConsumer` disk binding.
+
 Splunk 0.120.0 has a malformed legacy schema keyword (`deprecated` is a string), rejected by Helm 4. Schema checking is disabled only for that HelmRelease; its rendered configuration is validated with the actual Collector binary.
 
 ## Prepare secrets
